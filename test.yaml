@@ -1,0 +1,15 @@
+name: asp_cli
+version: 0.1.0
+description: Test YAML file
+config:
+  host: localhost
+  port: 8080
+  debug: true
+features:
+  - json
+  - yaml
+  - toml
+metadata:
+  author: Test User
+  created: "2025-11-16"
+
