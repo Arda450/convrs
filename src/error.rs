@@ -3,10 +3,11 @@
 // dynmaisch generischer Fehler-Typ
 #[derive(Debug)] // ermöglicht das Debugging des Fehlers
 pub enum FormatError { // pub macht es für anderen modulen benutzbar
-      IoError(String),
-      ParseError(String),
-      SerializationError(String), // Umbenannt von FormatError, um Namenskonflikt zu vermeiden
-      UnknownError(String),
+     IoError(String),
+     ParseError(String),
+     SerializationError(String), // Umbenannt von FormatError, um Namenskonflikt zu vermeiden
+     InvalidFormat(String), // Für ungültige/nicht unterstützte Formate
+     UnknownError(String),
 }
 
 // implementiert Display für FormatError, damit der Fehler als String ausgegeben werden kann
@@ -16,6 +17,7 @@ impl std::fmt::Display for FormatError {
           FormatError::IoError(msg) => write!(f, "IO-Fehler: {}", msg), // write! ist eine makro, die eine string in die formatierte ausgabe schreibt
           FormatError::ParseError(msg) => write!(f, "Parse-Fehler: {}", msg),
           FormatError::SerializationError(msg) => write!(f, "Format-Fehler: {}", msg),
+          FormatError::InvalidFormat(msg) => write!(f, "Ungültiges Format: {}", msg),
           FormatError::UnknownError(msg) => write!(f, "Unbekannter Fehler: {}", msg), // Fallback für unbekannte Fehler
       }
   } // end of match
