@@ -5,7 +5,7 @@ echo "  ASP CLI - Web-Version starten"
 echo "========================================"
 echo ""
 echo "Stoppe alte trunk-Prozesse..."
-pkill -f trunk 2>/dev/null || true
+cmd //c "taskkill /F /IM trunk.exe 2>nul" || true
 sleep 2
 
 echo ""

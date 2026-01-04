@@ -2,125 +2,81 @@
 
 use std::fs;
 use crate::error::FormatError;
+use crate::formats::utils::json_to_toml_value;
 
-/// Konvertiert YAML zu JSON
-/// Pipeline: YAML → serde_yaml::Value (IR) → serde_json::Value → JSON String
-pub fn convert_yaml_to_json(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. YAML-Datei validieren und parsen
-    let yaml_value = validate_yaml(input_path)?;
+// ============================================================================
+// STRING-ZU-STRING FUNKTIONEN (Core-Logik für CLI und Web)
+// ============================================================================
+
+/// Konvertiert YAML String zu JSON String
+pub fn yaml_to_json_string(input: &str) -> Result<String, FormatError> {
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(input)
+        .map_err(|e| FormatError::ParseError(format!("Ungültiges YAML: {}", e)))?;
     
-    // 2. serde_yaml::Value → serde_json::Value (IR)
-    // YAML und JSON sind strukturell sehr ähnlich
-    let json_value = serde_json::to_value(&yaml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von JSON: {}", e)))?;
-
-    // 3. JSON Value → Pretty-Printed String
-    let json_string = serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von JSON: {}", e)))?;
-    
-    // 4. String in Datei schreiben
-    fs::write(output_path, json_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
-}
-
-/// Konvertiert YAML zu YAML (Pretty-Printing / Formatierung)
-/// Pipeline: YAML → serde_yaml::Value (IR) → YAML String (neu formatiert)
-pub fn convert_yaml_to_yaml(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. YAML-Datei validieren und parsen
-    let yaml_value = validate_yaml(input_path)?;
-    
-    // 2. serde_yaml::Value → YAML String
-    let yaml_string = serde_yaml::to_string(&yaml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von YAML: {}", e)))?;
-    
-    // 3. String in Datei schreiben
-    fs::write(output_path, yaml_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
-}
-
-/// Konvertiert YAML zu TOML
-/// Pipeline: YAML → serde_yaml::Value → serde_json::Value (IR) → toml::Value → TOML String
-pub fn convert_yaml_to_toml(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. YAML-Datei validieren und parsen
-    let yaml_value = validate_yaml(input_path)?;
-    
-    // 2. serde_yaml::Value → serde_json::Value (Zwischenschritt)
     let json_value = serde_json::to_value(&yaml_value)
         .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
     
-    // 3. Prüfen ob TOML-kompatibel (TOML braucht ein Object als Root, kein Array)
-    if json_value.is_array() {
-        return Err(FormatError::SerializationError(
-            "TOML unterstützt keine Arrays als Root-Element. YAML muss ein Objekt enthalten.".to_string()
-        ));
-    }
-    
-    // 4. JSON Value → TOML String über Serde
-    // Wir gehen den Weg: JSON Value → JSON String → TOML Value → TOML String
-    let json_string = serde_json::to_string(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von JSON: {}", e)))?;
-    
-    let toml_value: toml::Value = toml::from_str(&json_string)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren zu TOML: {}", e)))?;
-    
-    // 5. TOML Value → Pretty-Printed String
-    let toml_string = toml::to_string_pretty(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von TOML: {}", e)))?;
-    
-    // 6. String in Datei schreiben
-    fs::write(output_path, toml_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
+    serde_json::to_string_pretty(&json_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von JSON: {}", e)))
 }
 
-/// Konvertiert YAML zu CSV
-/// Verschachtelte Strukturen werden geflattened mit Unterstrich (z.B. contact_email)
-/// Pipeline: YAML → serde_yaml::Value → serde_json::Value (IR) → Flattened → CSV
-pub fn convert_yaml_to_csv(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. YAML-Datei validieren und parsen
-    let yaml_value = validate_yaml(input_path)?;
+/// Konvertiert YAML String zu YAML String (Pretty-Printing)
+pub fn yaml_to_yaml_string(input: &str) -> Result<String, FormatError> {
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(input)
+        .map_err(|e| FormatError::ParseError(format!("Ungültiges YAML: {}", e)))?;
     
-    // 2. serde_yaml::Value → serde_json::Value (CSV-Crate arbeitet besser mit JSON)
+    serde_yaml::to_string(&yaml_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von YAML: {}", e)))
+}
+
+/// Konvertiert YAML String zu TOML String
+pub fn yaml_to_toml_string(input: &str) -> Result<String, FormatError> {
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(input)
+        .map_err(|e| FormatError::ParseError(format!("Ungültiges YAML: {}", e)))?;
+    
     let json_value = serde_json::to_value(&yaml_value)
         .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
     
-    // 3. Prüfen ob es ein Array ist (CSV braucht Array von Objekten)
-    let array = match json_value {
-        serde_json::Value::Array(arr) => arr,
-        serde_json::Value::Object(_) => {
-            // Wenn es ein Objekt ist, packen wir es in ein Array
-            vec![json_value]
-        },
-        _ => {
-            return Err(FormatError::SerializationError(
-                "YAML muss ein Array oder Objekt für CSV-Konvertierung sein".to_string()
-            ));
-        }
+    // TOML kann kein Array als Root haben
+    let toml_ready_value = if json_value.is_array() {
+        let mut root = serde_json::Map::new();
+        root.insert("data".to_string(), json_value);
+        serde_json::Value::Object(root)
+    } else {
+        json_value
     };
     
-    // 4. Alle Objekte flattenen
+    let toml_value = json_to_toml_value(&toml_ready_value)?;
+    
+    toml::to_string_pretty(&toml_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von TOML: {}", e)))
+}
+
+/// Konvertiert YAML String zu CSV String
+pub fn yaml_to_csv_string(input: &str) -> Result<String, FormatError> {
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(input)
+        .map_err(|e| FormatError::ParseError(format!("Ungültiges YAML: {}", e)))?;
+    
+    let json_value = serde_json::to_value(&yaml_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
+    
+    // Prüfen ob es ein Array ist
+    let array = match json_value {
+        serde_json::Value::Array(arr) => arr,
+        serde_json::Value::Object(_) => vec![json_value],
+        _ => return Err(FormatError::SerializationError("YAML muss ein Array oder Objekt sein".to_string()))
+    };
+    
+    if array.is_empty() {
+        return Ok(String::new());
+    }
+    
+    // Alle Objekte flattenen
     let flattened: Vec<_> = array.iter()
         .map(|v| flatten_json_value(v, ""))
         .collect();
-
-    // 5. Header aus allen flattened Objekten sammeln
+    
+    // Header sammeln
     let mut all_headers = std::collections::BTreeSet::new();
     for obj in &flattened {
         for key in obj.keys() {
@@ -128,28 +84,96 @@ pub fn convert_yaml_to_csv(
         }
     }
     let headers: Vec<String> = all_headers.into_iter().collect();
-
-    // 6. CSV-Writer erstellen
-    let mut writer = csv::Writer::from_path(output_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Erstellen von CSV: {}", e)))?;
     
-    // 7. Header schreiben
+    // CSV Writer in Memory
+    let mut writer = csv::Writer::from_writer(vec![]);
+    
+    // Header schreiben
     writer.write_record(&headers)
         .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
     
-    // 8. Daten schreiben
+    // Daten schreiben
     for flat_obj in flattened {
         let row: Vec<String> = headers.iter()
             .map(|h| flat_obj.get(h).cloned().unwrap_or_default())
             .collect();
         writer.write_record(&row)
-            .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Daten: {}", e)))?;
+            .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Zeile: {}", e)))?;
     }
     
-    // 9. Writer flushen (sicherstellen dass alles geschrieben wurde)
-    writer.flush()
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+    // Writer in String umwandeln
+    let data = writer.into_inner()
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+    
+    String::from_utf8(data)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler bei UTF-8 Konvertierung: {}", e)))
+}
 
+// ============================================================================
+// FILE-I/O WRAPPER FUNKTIONEN (nur für CLI)
+// ============================================================================
+
+/// Konvertiert YAML zu JSON (File-I/O Wrapper)
+pub fn convert_yaml_to_json(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = yaml_to_json_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert YAML zu YAML (File-I/O Wrapper)
+pub fn convert_yaml_to_yaml(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = yaml_to_yaml_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert YAML zu TOML (File-I/O Wrapper)
+pub fn convert_yaml_to_toml(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = yaml_to_toml_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert YAML zu CSV (File-I/O Wrapper)
+pub fn convert_yaml_to_csv(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = yaml_to_csv_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
     Ok(())
 }
 

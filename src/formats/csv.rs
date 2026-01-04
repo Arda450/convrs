@@ -6,125 +6,188 @@ use crate::formats::utils::json_to_toml_value;
 use csv::ReaderBuilder;
 use serde_json::Value as JsonValue;
 
-/// Konvertiert CSV zu JSON (flache Struktur)
-/// Pipeline: CSV → Vec<HashMap> → serde_json::Value (Array von Objekten) → JSON String
-/// Beispiel: "contact.email" → {"contact.email": "..."} (kein Verschachteln)
-pub fn convert_csv_to_json(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. CSV-Datei lesen und parsen (flach, keine Dot-Notation)
-    let records = read_csv_to_json_flat(input_path)?;
-    
-    // 2. Vec → JSON Array
+// ============================================================================
+// STRING-ZU-STRING FUNKTIONEN (Core-Logik für CLI und Web)
+// ============================================================================
+
+/// Konvertiert CSV String zu JSON String
+pub fn csv_to_json_string(input: &str) -> Result<String, FormatError> {
+    let records = parse_csv_to_json_values(input)?;
     let json_value = JsonValue::Array(records);
     
-    // 3. JSON Value → Pretty-Printed String
-    let json_string = serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von JSON: {}", e)))?;
-    
-    // 4. String in Datei schreiben
-    fs::write(output_path, json_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
+    serde_json::to_string_pretty(&json_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von JSON: {}", e)))
 }
 
-/// Konvertiert CSV zu YAML (flache Struktur)
-/// Pipeline: CSV → Vec<HashMap> → serde_json::Value → YAML String
-/// Beispiel: "contact.email" → {"contact.email": "..."} (kein Verschachteln)
-pub fn convert_csv_to_yaml(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. CSV-Datei lesen und parsen (flach, keine Dot-Notation)
-    let records = read_csv_to_json_flat(input_path)?;
-    
-    // 2. Vec → JSON Array (als Zwischenschritt)
+/// Konvertiert CSV String zu YAML String
+pub fn csv_to_yaml_string(input: &str) -> Result<String, FormatError> {
+    let records = parse_csv_to_json_values(input)?;
     let json_value = JsonValue::Array(records);
     
-    // 3. JSON Value → YAML String
-    let yaml_string = serde_yaml::to_string(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von YAML: {}", e)))?;
-    
-    // 4. String in Datei schreiben
-    fs::write(output_path, yaml_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
+    serde_yaml::to_string(&json_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von YAML: {}", e)))
 }
 
-/// Konvertiert CSV zu TOML (flache Struktur)
-/// Pipeline: CSV → Vec<HashMap> → serde_json::Value → toml::Value → TOML String
-/// ACHTUNG: TOML unterstützt keine Arrays als Root, daher wird das Array unter "data" gespeichert
-/// Beispiel: "contact.email" → {"contact.email": "..."} (kein Verschachteln)
-pub fn convert_csv_to_toml(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. CSV-Datei lesen und parsen (flach, keine Dot-Notation)
-    let records = read_csv_to_json_flat(input_path)?;
-    
-    // 2. Vec → JSON Array
+/// Konvertiert CSV String zu TOML String
+pub fn csv_to_toml_string(input: &str) -> Result<String, FormatError> {
+    let records = parse_csv_to_json_values(input)?;
     let json_array = JsonValue::Array(records);
     
-    // 3. TOML braucht ein Objekt als Root, nicht ein Array
-    // Daher packen wir das Array in ein Objekt unter dem Key "data"
+    // TOML braucht ein Objekt als Root
     let mut root_object = serde_json::Map::new();
     root_object.insert("data".to_string(), json_array);
     let json_value = JsonValue::Object(root_object);
     
-    // 4. JSON Value → TOML Value konvertieren
     let toml_value = json_to_toml_value(&json_value)?;
     
-    // 5. TOML Value → Pretty-Printed String
-    let toml_string = toml::to_string_pretty(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von TOML: {}", e)))?;
-    
-    // 6. String in Datei schreiben
-    fs::write(output_path, toml_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
-
-    Ok(())
+    toml::to_string_pretty(&toml_value)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von TOML: {}", e)))
 }
 
-/// Konvertiert CSV zu CSV (Formatierung / Cleanup)
-/// Pipeline: CSV → Vec<HashMap> → CSV (neu formatiert)
-pub fn convert_csv_to_csv(
-    input_path: &str,
-    output_path: &str
-) -> Result<(), FormatError> {
-    // 1. CSV-Datei lesen
+/// Konvertiert CSV String zu CSV String (Formatierung)
+pub fn csv_to_csv_string(input: &str) -> Result<String, FormatError> {
+    let records = parse_csv_to_json_values(input)?;
+    
+    if records.is_empty() {
+        return Ok(String::new());
+    }
+    
+    // Header aus erstem Record extrahieren
+    let headers: Vec<String> = if let JsonValue::Object(obj) = &records[0] {
+        obj.keys().cloned().collect()
+    } else {
+        return Err(FormatError::SerializationError("CSV Records müssen Objekte sein".to_string()));
+    };
+    
+    // CSV Writer in Memory
+    let mut writer = csv::Writer::from_writer(vec![]);
+    
+    // Header schreiben
+    writer.write_record(&headers)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
+    
+    // Records schreiben
+    for record in &records {
+        if let JsonValue::Object(obj) = record {
+            let row: Vec<String> = headers.iter()
+                .map(|h| {
+                    obj.get(h)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+                .collect();
+            writer.write_record(&row)
+                .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Zeile: {}", e)))?;
+        }
+    }
+    
+    // Writer in String umwandeln
+    let data = writer.into_inner()
+        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+    
+    String::from_utf8(data)
+        .map_err(|e| FormatError::SerializationError(format!("Fehler bei UTF-8 Konvertierung: {}", e)))
+}
+
+/// Hilfsfunktion: Parst CSV String zu JSON Values (flach, keine Dot-Notation)
+fn parse_csv_to_json_values(input: &str) -> Result<Vec<JsonValue>, FormatError> {
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
-        .from_path(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von CSV {}: {}", input_path, e)))?;
+        .from_reader(input.as_bytes());
     
-    // 2. CSV-Writer erstellen
-    let mut writer = csv::Writer::from_path(output_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Erstellen von CSV: {}", e)))?;
-    
-    // 3. Header schreiben
     let headers = reader.headers()
         .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen der CSV-Header: {}", e)))?
         .clone();
     
-    writer.write_record(&headers)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
+    let header_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
     
-    // 4. Alle Records schreiben
+    let mut records = Vec::new();
+    
     for result in reader.records() {
         let record = result
             .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen eines CSV-Records: {}", e)))?;
         
-        writer.write_record(&record)
-            .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben eines CSV-Records: {}", e)))?;
+        let mut obj = serde_json::Map::new();
+        
+        for (i, field) in record.iter().enumerate() {
+            if let Some(header) = header_vec.get(i) {
+                let value = infer_type(field);
+                obj.insert(header.clone(), value);
+            }
+        }
+        
+        records.push(JsonValue::Object(obj));
     }
     
-    // 5. Writer flushen
-    writer.flush()
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+    Ok(records)
+}
 
+// ============================================================================
+// FILE-I/O WRAPPER FUNKTIONEN (nur für CLI)
+// ============================================================================
+
+/// Konvertiert CSV zu JSON (File-I/O Wrapper)
+pub fn convert_csv_to_json(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = csv_to_json_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert CSV zu YAML (File-I/O Wrapper)
+pub fn convert_csv_to_yaml(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = csv_to_yaml_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert CSV zu TOML (File-I/O Wrapper)
+pub fn convert_csv_to_toml(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = csv_to_toml_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
+}
+
+/// Konvertiert CSV zu CSV (File-I/O Wrapper)
+pub fn convert_csv_to_csv(
+    input_path: &str,
+    output_path: &str
+) -> Result<(), FormatError> {
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    let result = csv_to_csv_string(&content)?;
+    
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
     Ok(())
 }
 
@@ -187,50 +250,7 @@ pub fn convert_csv_to_json_nested(
     Ok(())
 }
 
-/// Hilfsfunktion: Liest CSV und erstellt flache JSON-Objekte (KEINE Dot-Notation)
-/// 
-/// Beispiel:
-/// CSV: name,contact.email,contact.phone
-/// JSON: {"name": "...", "contact.email": "...", "contact.phone": "..."}
-fn read_csv_to_json_flat(input_path: &str) -> Result<Vec<JsonValue>, FormatError> {
-    // 1. CSV-Reader erstellen
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .from_path(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von CSV {}: {}", input_path, e)))?;
-    
-    // 2. Header lesen
-    let headers = reader.headers()
-        .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen der CSV-Header: {}", e)))?
-        .clone();
-    
-    let header_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
-    
-    // 3. Records lesen und in flache JSON-Objekte konvertieren
-    let mut records = Vec::new();
-    
-    for result in reader.records() {
-        let record = result
-            .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen eines CSV-Records: {}", e)))?;
-        
-        // Jedes Record wird ein flaches JSON-Objekt (KEINE Verschachtelung)
-        let mut obj = serde_json::Map::new();
-        
-        for (i, field) in record.iter().enumerate() {
-            if let Some(header) = header_vec.get(i) {
-                // Typ-Inferenz
-                let value = infer_type(field);
-                
-                // Direkt als flacher Key einfügen (keine Dot-Notation-Verarbeitung)
-                obj.insert(header.clone(), value);
-            }
-        }
-        
-        records.push(JsonValue::Object(obj));
-    }
-    
-    Ok(records)
-}
+// Hinweis: read_csv_to_json_flat wurde durch parse_csv_to_json_values ersetzt (siehe oben)
 
 /// Hilfsfunktion: Liest CSV mit Dot-Notation und erstellt verschachtelte Strukturen
 /// 

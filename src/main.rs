@@ -1,17 +1,13 @@
 // CLI-Interface - nur mit "cli" Feature kompiliert
 
 #[cfg(feature = "cli")]
-use asp_cli::formats::json::{convert_json_to_json, convert_json_to_toml, convert_json_to_yaml, convert_json_to_csv};
-#[cfg(feature = "cli")]
-use asp_cli::formats::toml::{convert_toml_to_json, convert_toml_to_yaml, convert_toml_to_toml, convert_toml_to_csv};
-#[cfg(feature = "cli")]
-use asp_cli::formats::yaml::{convert_yaml_to_json, convert_yaml_to_yaml, convert_yaml_to_toml, convert_yaml_to_csv};
-#[cfg(feature = "cli")]
-use asp_cli::formats::csv::{convert_csv_to_json, convert_csv_to_yaml, convert_csv_to_toml, convert_csv_to_csv};
-#[cfg(feature = "cli")]
-use asp_cli::error::FormatError;
+use asp_cli::{FileFormat, FormatError};
 #[cfg(feature = "cli")]
 use std::path::Path;
+#[cfg(feature = "cli")]
+use std::fs;
+#[cfg(feature = "cli")]
+use std::str::FromStr;
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand};
 
@@ -41,78 +37,37 @@ enum Commands {
 }
 
 #[cfg(feature = "cli")]
-/// Entscheidet basierend auf Dateierweiterung, welche Konvertierungsfunktion aufgerufen werden soll
+/// Elegante Konvertierung mit FileFormat Enum (viel sauberer als verschachtelte Matches!)
 fn convert_based_on_extension(
-    input: &str,
-    output: &str,
+    input_path: &str,
+    output_path: &str,
 ) -> Result<(), FormatError> {
-    // Prüft BEIDE Dateierweiterungen: Input UND Output
-    let input_ext = Path::new(input)
+    // 1. Parse Extensions zu FileFormat Enum
+    let input_ext = Path::new(input_path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .unwrap_or("json");
+        .ok_or_else(|| FormatError::ParseError("Keine Eingabedatei-Extension gefunden".to_string()))?;
     
-    let output_ext = Path::new(output)
-        .extension() // gibt die dateierweiterung der datei zurück, also z.B. "json" oder "toml"
-        .and_then(|ext| ext.to_str()) // konvertiert die extension zu einem string, weil rust-os funktionen nicht utf-8 sein können
-        .unwrap_or("json");
+    let output_ext = Path::new(output_path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or_else(|| FormatError::ParseError("Keine Ausgabedatei-Extension gefunden".to_string()))?;
     
-    // Nested match: Erst Eingabeformat prüfen, dann Ausgabeformat
-    match input_ext.to_lowercase().as_str() {
-        // JSON als Eingabeformat
-        "json" => match output_ext.to_lowercase().as_str() {
-            "json" => convert_json_to_json(input, output),
-            "toml" => convert_json_to_toml(input, output),
-            "yaml" | "yml" => convert_json_to_yaml(input, output),
-            "csv" => convert_json_to_csv(input, output),
-        _ => {
-            // Fallback: Standard ist JSON
-            convert_json_to_json(input, output)
-        }
-        },
-        
-        // TOML als Eingabeformat
-        "toml" => match output_ext.to_lowercase().as_str() {
-            "json" => convert_toml_to_json(input, output),
-            "yaml" | "yml" => convert_toml_to_yaml(input, output),
-            "toml" => convert_toml_to_toml(input, output),
-            "csv" => convert_toml_to_csv(input, output),
-            _ => {
-                // Fallback: Konvertiere zu JSON
-                convert_toml_to_json(input, output)
-            }
-        },
-        
-        // YAML als Eingabeformat
-        "yaml" | "yml" => match output_ext.to_lowercase().as_str() {
-            "json" => convert_yaml_to_json(input, output),
-            "yaml" | "yml" => convert_yaml_to_yaml(input, output),
-            "toml" => convert_yaml_to_toml(input, output),
-            "csv" => convert_yaml_to_csv(input, output),
-            _ => {
-                // Fallback: Konvertiere zu JSON
-                convert_yaml_to_json(input, output)
-            }
-        },
-        
-        // CSV als Eingabeformat
-        "csv" => match output_ext.to_lowercase().as_str() {
-            "json" => convert_csv_to_json(input, output),
-            "yaml" | "yml" => convert_csv_to_yaml(input, output),
-            "toml" => convert_csv_to_toml(input, output),
-            "csv" => convert_csv_to_csv(input, output),
-            _ => {
-                // Fallback: Konvertiere zu JSON
-                convert_csv_to_json(input, output)
-            }
-        },
-        
-        // Fallback für unbekannte Eingabeformate
-        _ => Err(FormatError::SerializationError(format!(
-            "Ungültiges Eingabeformat: .{}. Unterstützte Formate: json, yaml, yml, toml, csv",
-            input_ext
-        ))),
-    }
+    let input_format = FileFormat::from_str(input_ext)?;
+    let output_format = FileFormat::from_str(output_ext)?;
+    
+    // 2. Datei lesen
+    let content = fs::read_to_string(input_path)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+    
+    // 3. Konvertierung durchführen (eine Zeile!)
+    let result = input_format.convert(&content, output_format)?;
+    
+    // 4. Datei schreiben
+    fs::write(output_path, result)
+        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+    
+    Ok(())
 }
 
 #[cfg(feature = "cli")]

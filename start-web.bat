@@ -15,5 +15,5 @@ echo Druecke Ctrl+C zum Beenden
 echo.
 
 cd %~dp0
-trunk serve
+trunk serve --address 127.0.0.1
 
