@@ -14,11 +14,11 @@ pub enum FormatError { // pub macht es für anderen modulen benutzbar
 impl std::fmt::Display for FormatError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { // rückgabe ist ein std::fmt::Result, also Ok(()) oder Err(e)
       match self { // pattern matching, um den Fehler zu handeln
-          FormatError::IoError(msg) => write!(f, "IO-Fehler: {}", msg), // write! ist eine makro, die eine string in die formatierte ausgabe schreibt
-          FormatError::ParseError(msg) => write!(f, "Parse-Fehler: {}", msg),
-          FormatError::SerializationError(msg) => write!(f, "Format-Fehler: {}", msg),
-          FormatError::InvalidFormat(msg) => write!(f, "Ungültiges Format: {}", msg),
-          FormatError::UnknownError(msg) => write!(f, "Unbekannter Fehler: {}", msg), // Fallback für unbekannte Fehler
+          FormatError::IoError(msg) => write!(f, "IO Error: {}", msg), // write! ist eine makro, die eine string in die formatierte ausgabe schreibt
+          FormatError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
+          FormatError::SerializationError(msg) => write!(f, "Serialization Error: {}", msg),
+          FormatError::InvalidFormat(msg) => write!(f, "Invalid Format: {}", msg),
+          FormatError::UnknownError(msg) => write!(f, "Unknown Error: {}", msg), // Fallback für unbekannte Fehler
       }
   } // end of match
 } // end of impl

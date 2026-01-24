@@ -19,13 +19,6 @@ pub enum FileFormat {
 }
 
 impl FileFormat {
-    /// Konvertiert Input-String von diesem Format zu einem anderen Format
-    /// 
-    /// # Beispiel
-    /// ```
-    /// let json_input = r#"{"name": "Test"}"#;
-    /// let yaml_output = FileFormat::Json.convert(json_input, FileFormat::Yaml)?;
-    /// ```
     pub fn convert(&self, input: &str, output_format: FileFormat) -> Result<String, FormatError> {
         match (self, output_format) {
             // JSON als Quelle
@@ -79,7 +72,7 @@ impl FromStr for FileFormat {
             "toml" => Ok(FileFormat::Toml),
             "yaml" | "yml" => Ok(FileFormat::Yaml),
             "csv" => Ok(FileFormat::Csv),
-            _ => Err(FormatError::ParseError(format!("Unbekanntes Format: {}", s))),
+            _ => Err(FormatError::ParseError(format!("Unknown format: {}", s))),
         }
     }
 }

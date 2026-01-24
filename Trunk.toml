@@ -1,0 +1,17 @@
+[build]
+# Basis-Einstellungen
+target = "index.html"
+dist = "dist"
+public_url = "/"
+
+[watch]
+# Welche Dateien beobachtet werden sollen
+ignore = ["dist", "target"]
+# Reduziere Watch-Intervall
+poll_interval_ms = 2000
+
+[serve]
+# Dev-Server Einstellungen
+address = "127.0.0.1"
+port = 8080
+open = true

@@ -1,16 +1,16 @@
 [package]
-name = "asp_cli"
+name = "convrs"
 version = "0.1.0"
 edition = "2024"
 
 # Definiere Binaries
 [[bin]]
-name = "asp_cli"          # CLI-Tool
+name = "convrs"          # CLI-Tool
 path = "src/main.rs"
 required-features = ["cli"]
 
 [[bin]]
-name = "asp_web"          # Web-Version
+name = "convrs-web"      # Web-Version
 path = "src/bin/web.rs"
 required-features = ["web"]
 

@@ -1,6 +1,6 @@
 # Rust Build-Artefakte
 /target/
-Cargo.lock
+# Cargo.lock sollte für Binaries committed werden (reproduzierbare Builds)
 
 # Debug-Symbole
 *.pdb
@@ -31,6 +31,7 @@ desktop.ini
 
 # Diese wichtigen Config-Dateien sind Ausnahmen und werden NICHT ignoriert:
 !Cargo.toml
+!Trunk.toml
 !package.json
 !package-lock.json
 !tsconfig.json
@@ -43,3 +44,6 @@ node_modules/
 # Temporäre Dateien
 *.tmp
 *.log
+
+# Web Build-Artefakte
+/dist/

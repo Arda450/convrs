@@ -19,7 +19,7 @@ pub fn json_to_toml_value(json: &JsonValue) -> Result<toml::Value, FormatError> 
                 Ok(toml::Value::Float(f))
             } else {
                 Err(FormatError::SerializationError(
-                    "Ungültige Zahl für TOML".to_string()
+                    "Invalid number for TOML".to_string()
                 ))
             }
         },

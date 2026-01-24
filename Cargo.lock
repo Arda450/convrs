@@ -53,21 +53,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "asp_cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "console_error_panic_hook",
- "csv",
- "serde",
- "serde_json",
- "serde_yaml",
- "toml",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -133,6 +118,21 @@ checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
 dependencies = [
  "cfg-if",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "convrs"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "console_error_panic_hook",
+ "csv",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "toml",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
