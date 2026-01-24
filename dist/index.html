@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no"
     />
-    <title>ASP CLI - Web Version</title>
+    <title>convrs - Web Version</title>
 
     <!-- Fira Code Font (Terminal-Look) -->
     <link
@@ -17,8 +17,8 @@
     <!-- Trunk wird das WASM hier automatisch einfügen -->
     
 <script type="module">
-import init, * as bindings from '/asp_web-2e87af911662fb8b.js';
-const wasm = await init({ module_or_path: '/asp_web-2e87af911662fb8b_bg.wasm' });
+import init, * as bindings from '/convrs-web-f38e7ede58704c8c.js';
+const wasm = await init({ module_or_path: '/convrs-web-f38e7ede58704c8c_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -91,6 +91,13 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
         background: #000000;
         border: 1px solid #00ff00;
         overflow: hidden;
+        position: relative;
+      }
+
+      .textarea-wrapper {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
       }
 
       .panel-header {
@@ -132,8 +139,15 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
         outline: 1px solid #00ff00;
       }
 
-      textarea {
+      .textarea-wrapper {
+        position: relative;
         flex: 1;
+        overflow: hidden;
+      }
+
+      .textarea-wrapper textarea {
+        width: 100%;
+        height: 100%;
         padding: 12px;
         background: #000000;
         color: #00ff00;
@@ -143,13 +157,14 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
         line-height: 1.5;
         resize: none;
         outline: none;
+        box-sizing: border-box;
       }
 
-      textarea::placeholder {
+      .textarea-wrapper textarea::placeholder {
         color: #006600;
       }
 
-      textarea[readonly] {
+      .textarea-wrapper textarea[readonly] {
         color: #00ff00;
         background: #001100;
       }
@@ -227,30 +242,41 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
       }
 
       /* Terminal-Cursor-Effekt für fokussierte Textareas */
-      textarea:focus {
+      .textarea-wrapper textarea:focus {
         outline: 1px solid #00ff00;
         box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
       }
 
       /* Scrollbar Styling für Terminal-Look */
-      textarea::-webkit-scrollbar {
+      .textarea-wrapper textarea::-webkit-scrollbar {
         width: 8px;
       }
 
-      textarea::-webkit-scrollbar-track {
+      .textarea-wrapper textarea::-webkit-scrollbar-track {
         background: #000000;
       }
 
-      textarea::-webkit-scrollbar-thumb {
+      .textarea-wrapper textarea::-webkit-scrollbar-thumb {
         background: #00ff00;
         border: 1px solid #000000;
       }
 
-      textarea::-webkit-scrollbar-thumb:hover {
+      .textarea-wrapper textarea::-webkit-scrollbar-thumb:hover {
         background: #00cc00;
       }
+
+      /* Fehlerzeilen-Markierung */
+      .error-line-overlay {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        background: rgba(255, 0, 0, 0.2);
+        border-left: 3px solid #ff0000;
+        pointer-events: none;
+        z-index: 1;
+      }
     </style>
-  <link rel="modulepreload" href="/asp_web-2e87af911662fb8b.js" crossorigin="anonymous" integrity="sha384-OrAPghaAt3hlVkvGq4TKBoM6hLxiVvmUuYycem2l2Kod3JLJzj3Vl3lV51rgROt0"><link rel="preload" href="/asp_web-2e87af911662fb8b_bg.wasm" crossorigin="anonymous" integrity="sha384-LaiwZuTxvOfrFUuwgAI7Flfj132oYU7BurnTzZdlewAmQwRFvi1/lTcPtiksyRhR" as="fetch" type="application/wasm"></head>
+  <link rel="modulepreload" href="/convrs-web-f38e7ede58704c8c.js" crossorigin="anonymous" integrity="sha384-kXPyTWoRuMPQr+NLNZPYVHtQXb4QEiN4G4kiHhfXSyUrH1S9OBeLHhT0E1qkdvki"><link rel="preload" href="/convrs-web-f38e7ede58704c8c_bg.wasm" crossorigin="anonymous" integrity="sha384-cqc6qcgYWZh10bwsxbHyoOXBKSG0wTrdiuMTkIczoEA93FCPpQ1NLHW4mAzLuaYR" as="fetch" type="application/wasm"></head>
   <body>
     <div class="container">
       <header>
@@ -269,15 +295,17 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
               <option value="CSV">CSV</option>
             </select>
           </div>
-          <textarea
-            id="input"
-            placeholder='# Enter your data here
+          <div class="textarea-wrapper">
+            <textarea
+              id="input"
+              placeholder='# Enter your data here
 # Example:
 # {
 #   "name": "Test",
 #   "value": 42
 # }'
-          ></textarea>
+            ></textarea>
+          </div>
         </div>
 
         <!-- Middle: Convert Button -->
@@ -299,11 +327,14 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             </select>
             <button id="copy-btn" class="copy-btn">copy</button>
           </div>
-          <textarea
-            id="output"
-            placeholder="# Waiting for conversion..."
-            readonly
-          ></textarea>
+          <!-- für die Fehler-Markierung -->
+          <div class="textarea-wrapper">
+            <textarea
+              id="output"
+              placeholder="# Waiting for conversion..."
+              readonly
+            ></textarea>
+          </div>
         </div>
       </div>
 
@@ -314,7 +345,124 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
     <script type="module">
       window.addEventListener("TrunkApplicationStarted", (_) => {
-        console.log("[asp_cli] wasm module loaded");
+        console.log("[convrs] wasm module loaded");
+      });
+
+      // Funktion zum Markieren der Fehlerzeile im Input-Textarea
+      function highlightErrorLine() {
+        const textarea = document.getElementById("input");
+        const errorLineStr = textarea.getAttribute("data-error-line");
+        const wrapper = textarea.parentElement; // .textarea-wrapper
+
+        // Entferne alte Fehler-Markierung
+        const oldOverlay = wrapper.querySelector(".error-line-overlay");
+        if (oldOverlay) {
+          oldOverlay.remove();
+        }
+
+        if (!errorLineStr) {
+          return; // Keine Fehlerzeile
+        }
+
+        const errorLine = parseInt(errorLineStr);
+        if (isNaN(errorLine) || errorLine < 1) {
+          return;
+        }
+
+        // Berechne Position der Fehlerzeile
+        const lines = textarea.value.split("\n");
+        if (errorLine > lines.length) {
+          return;
+        }
+
+        // Zeilenhöhe berechnen (muss mit CSS übereinstimmen)
+        const computedStyle = window.getComputedStyle(textarea);
+        const fontSize = parseFloat(computedStyle.fontSize);
+        const lineHeight =
+          parseFloat(computedStyle.lineHeight) || fontSize * 1.5;
+        const padding = parseFloat(computedStyle.paddingTop);
+
+        // Position relativ zum Wrapper
+        // Wichtig: Die Position muss die Scroll-Position der Textarea berücksichtigen
+        const topOffset = padding + (errorLine - 1) * lineHeight;
+
+        // Erstelle Overlay für Fehlerzeile
+        const overlay = document.createElement("div");
+        overlay.className = "error-line-overlay";
+
+        // Funktion zum Aktualisieren der Overlay-Position (wird beim Scrollen aufgerufen)
+        function updateOverlayPosition() {
+          if (!overlay.parentElement) return;
+          const currentScroll = textarea.scrollTop;
+          // Overlay muss sich mit dem Text bewegen: wenn Textarea scrollt, bewegt sich Overlay entgegengesetzt
+          overlay.style.top = `${topOffset - currentScroll}px`;
+        }
+
+        // Initiale Position (ohne Scroll)
+        overlay.style.cssText = `
+          position: absolute;
+          top: ${topOffset}px;
+          left: ${padding}px;
+          right: ${padding}px;
+          height: ${lineHeight}px;
+          background: rgba(255, 0, 0, 0.2);
+          border-left: 3px solid #ff0000;
+          pointer-events: none;
+          z-index: 1;
+        `;
+
+        wrapper.appendChild(overlay);
+
+        // Scroll zur Fehlerzeile
+        const scrollTop = Math.max(0, (errorLine - 1) * lineHeight - 100); // 100px Offset oben
+        textarea.scrollTop = scrollTop;
+
+        // Update Overlay-Position beim Scrollen
+        const scrollHandler = updateOverlayPosition;
+        textarea.addEventListener("scroll", scrollHandler);
+
+        // Initiale Position nach kurzer Verzögerung (damit Scroll-Position gesetzt ist)
+        setTimeout(updateOverlayPosition, 50);
+
+        // Cleanup: Entferne Event-Listener wenn Overlay entfernt wird
+        const cleanupObserver = new MutationObserver(function () {
+          if (!overlay.parentElement) {
+            textarea.removeEventListener("scroll", scrollHandler);
+            cleanupObserver.disconnect();
+          }
+        });
+        cleanupObserver.observe(wrapper, { childList: true });
+      }
+
+      // Observer für data-error-line Attribut-Änderungen
+      const inputTextarea = document.getElementById("input");
+      const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (
+            mutation.type === "attributes" &&
+            mutation.attributeName === "data-error-line"
+          ) {
+            highlightErrorLine();
+          }
+        });
+      });
+
+      observer.observe(inputTextarea, {
+        attributes: true,
+        attributeFilter: ["data-error-line"],
+      });
+
+      // Initiale Prüfung beim Laden
+      setTimeout(highlightErrorLine, 100);
+
+      // Fehler-Markierung entfernen, wenn User Text ändert
+      inputTextarea.addEventListener("input", function () {
+        inputTextarea.removeAttribute("data-error-line");
+        const wrapper = inputTextarea.parentElement;
+        const oldOverlay = wrapper.querySelector(".error-line-overlay");
+        if (oldOverlay) {
+          oldOverlay.remove();
+        }
       });
     </script>
   <script>"use strict";

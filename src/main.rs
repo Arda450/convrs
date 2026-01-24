@@ -1,7 +1,7 @@
 // CLI-Interface - nur mit "cli" Feature kompiliert
 
 #[cfg(feature = "cli")]
-use asp_cli::{FileFormat, FormatError};
+use convrs::{FileFormat, FormatError};
 #[cfg(feature = "cli")]
 use std::path::Path;
 #[cfg(feature = "cli")]
@@ -13,8 +13,8 @@ use clap::{Parser, Subcommand};
 
 #[cfg(feature = "cli")]
 #[derive(Parser)]
-#[command(name = "asp_cli")]
-#[command(about = "Format-Konverter für JSON, YAML, TOML, CSV")]
+#[command(name = "convrs")]
+#[command(about = "Format-Converter for JSON, YAML, TOML, CSV")]
 #[command(version = "0.1.0")]
 struct Cli {
     #[command(subcommand)]
@@ -46,26 +46,26 @@ fn convert_based_on_extension(
     let input_ext = Path::new(input_path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .ok_or_else(|| FormatError::ParseError("Keine Eingabedatei-Extension gefunden".to_string()))?;
+        .ok_or_else(|| FormatError::ParseError("No input file extension found".to_string()))?;
     
     let output_ext = Path::new(output_path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .ok_or_else(|| FormatError::ParseError("Keine Ausgabedatei-Extension gefunden".to_string()))?;
+        .ok_or_else(|| FormatError::ParseError("No output file extension found".to_string()))?;
     
     let input_format = FileFormat::from_str(input_ext)?;
     let output_format = FileFormat::from_str(output_ext)?;
     
     // 2. Datei lesen
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     // 3. Konvertierung durchführen (eine Zeile!)
     let result = input_format.convert(&content, output_format)?;
     
     // 4. Datei schreiben
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -78,9 +78,9 @@ fn main() {
     match cli.command {
         Commands::Convert { input, output } => {
             match convert_based_on_extension(&input, &output) {
-                Ok(_) => println!("✓ Konvertierung erfolgreich: {} -> {}", input, output),
+                Ok(_) => println!("✓ Conversion successful: {} -> {}", input, output),
                 Err(e) => {
-                    eprintln!("✗ Fehler: {}", e);
+                    eprintln!("✗ Error: {}", e);
                     std::process::exit(1);
                 }
             }

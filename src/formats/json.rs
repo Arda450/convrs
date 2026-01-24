@@ -1,29 +1,22 @@
 // json to other formats
 
-
-
-// use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::error::FormatError;
 use crate::formats::utils::json_to_toml_value;
 
-// ============================================================================
-// STRING-ZU-STRING FUNKTIONEN (Core-Logik für CLI und Web)
-// ============================================================================
-
 /// Konvertiert JSON String zu formatiertem JSON String
 pub fn json_to_json_string(input: &str) -> Result<String, FormatError> {
     let json_value: serde_json::Value = serde_json::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges JSON: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid JSON: {}", e)))?;
     
     serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von JSON: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting JSON: {}", e)))
 }
 
 /// Konvertiert JSON String zu TOML String
 pub fn json_to_toml_string(input: &str) -> Result<String, FormatError> {
     let json_value: serde_json::Value = serde_json::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges JSON: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid JSON: {}", e)))?;
     
     // TOML unterstützt kein Array als Root-Element
     // Wenn es ein Array ist, wrappen wir es in ein Objekt
@@ -39,28 +32,28 @@ pub fn json_to_toml_string(input: &str) -> Result<String, FormatError> {
     
     // TOML Value → Pretty-Printed String
     toml::to_string_pretty(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von TOML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error serializing TOML: {}", e)))
 }
 
 /// Konvertiert JSON String zu YAML String
 pub fn json_to_yaml_string(input: &str) -> Result<String, FormatError> {
     let json_value: serde_json::Value = serde_json::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges JSON: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid JSON: {}", e)))?;
     
     serde_yaml::to_string(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von YAML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting YAML: {}", e)))
 }
 
 /// Konvertiert JSON String zu CSV String
 pub fn json_to_csv_string(input: &str) -> Result<String, FormatError> {
     let json_value: serde_json::Value = serde_json::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges JSON: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid JSON: {}", e)))?;
     
     // JSON Array zu CSV
     let array = match json_value {
         serde_json::Value::Array(arr) => arr,
         serde_json::Value::Object(_) => vec![json_value],
-        _ => return Err(FormatError::SerializationError("JSON muss ein Array oder Objekt sein für CSV".to_string()))
+        _ => return Err(FormatError::SerializationError("JSON must be an array or object for CSV".to_string()))
     };
     
     if array.is_empty() {
@@ -86,7 +79,7 @@ pub fn json_to_csv_string(input: &str) -> Result<String, FormatError> {
     
     // Header schreiben
     writer.write_record(&headers)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error writing CSV header: {}", e)))?;
     
     // Daten schreiben
     for flat_obj in flattened {
@@ -94,82 +87,81 @@ pub fn json_to_csv_string(input: &str) -> Result<String, FormatError> {
             .map(|h| flat_obj.get(h).cloned().unwrap_or_default())
             .collect();
         writer.write_record(&row)
-            .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Zeile: {}", e)))?;
+            .map_err(|e| FormatError::SerializationError(format!("Error writing CSV row: {}", e)))?;
     }
     
     // Writer in String umwandeln
     let data = writer.into_inner()
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error finishing CSV: {}", e)))?;
     
     String::from_utf8(data)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler bei UTF-8 Konvertierung: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error converting to UTF-8: {}", e)))
 }
 
-// ============================================================================
-// FILE-I/O WRAPPER FUNKTIONEN (nur für CLI)
-// ============================================================================
+//  ende der web string zu stirng funktionen. unten werden sie weiter benutzt um die datei zu lesen und zu schreiben im cli
 
-/// Konvertiert JSON zu formatiertem JSON (File-I/O Wrapper)
+/// konvertiert json zu json für das cli
 pub fn convert_json_to_json(
     input_path: &str,
     output_path: &str,
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = json_to_json_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
 
-/// Konvertiert JSON zu TOML (File-I/O Wrapper)
+/// konvertiert json zu toml für das cli
 pub fn convert_json_to_toml(
     input_path: &str,
     output_path: &str,
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = json_to_toml_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
 
-/// Konvertiert JSON zu formatiertem YAML (File-I/O Wrapper)
+/// Konvertiert JSON zu YAML für das cli
 pub fn convert_json_to_yaml(
     input_path: &str,
     output_path: &str,
 ) -> Result<(), FormatError> {
+    // liest die datei ein und speichert den inhalt in der variable content
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
-    
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
+    // ruft die string funktion zwischen zeile 38-45 auf und speichert den inhalt in der variable result
     let result = json_to_yaml_string(&content)?;
-    
+    // schreibt den inhalt von result in die datei output_path
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
 
 
-/// Konvertiert JSON zu CSV (File-I/O Wrapper)
+/// konvertiert json zu csv für das cli
 pub fn convert_json_to_csv(
     input_path: &str,
     output_path: &str,
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = json_to_csv_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -179,12 +171,12 @@ pub fn convert_json_to_csv(
 /// Validiert eine JSON-Datei ohne sie zu schreiben
 pub fn validate_json(input_path: &str) -> Result<serde_json::Value, FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
 
         // serde_json::from_str prüft ob syntax korrekt ist
         // prüft ob syntax korrekt ist
     let json_value: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| FormatError::ParseError(format!("Fehler beim Parsen von JSON: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Error parsing JSON: {}", e)))?;
 
     Ok(json_value)
 }

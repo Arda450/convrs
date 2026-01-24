@@ -4,49 +4,49 @@ use std::fs;
 use crate::error::FormatError;
 
 // ============================================================================
-// STRING-ZU-STRING FUNKTIONEN (Core-Logik für CLI und Web)
+// hier befinden sich string zu string funktionen (Core-Logik für CLI und Web)
 // ============================================================================
 
 /// Konvertiert TOML String zu JSON String
 pub fn toml_to_json_string(input: &str) -> Result<String, FormatError> {
     let toml_value: toml::Value = toml::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges TOML: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid TOML: {}", e)))?;
     
     let json_value = serde_json::to_value(&toml_value)
         .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
     
     serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von JSON: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting JSON: {}", e)))
 }
 
 /// Konvertiert TOML String zu YAML String
 pub fn toml_to_yaml_string(input: &str) -> Result<String, FormatError> {
     let toml_value: toml::Value = toml::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges TOML: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid TOML: {}", e)))?;
     
     let json_value = serde_json::to_value(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error converting: {}", e)))?;
     
     serde_yaml::to_string(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von YAML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting YAML: {}", e)))
 }
 
 /// Konvertiert TOML String zu TOML String (Pretty-Printing)
 pub fn toml_to_toml_string(input: &str) -> Result<String, FormatError> {
     let toml_value: toml::Value = toml::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges TOML: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid TOML: {}", e)))?;
     
     toml::to_string_pretty(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von TOML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting TOML: {}", e)))
 }
 
 /// Konvertiert TOML String zu CSV String
 pub fn toml_to_csv_string(input: &str) -> Result<String, FormatError> {
     let toml_value: toml::Value = toml::from_str(input)
-        .map_err(|e| FormatError::ParseError(format!("Ungültiges TOML: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Invalid TOML: {}", e)))?;
     
     let mut json_value = serde_json::to_value(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Konvertieren: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error converting: {}", e)))?;
     
     // Wenn es ein Objekt mit "data" Key ist (von CSV → TOML), extrahiere das Array
     if let serde_json::Value::Object(ref obj) = json_value {
@@ -59,7 +59,7 @@ pub fn toml_to_csv_string(input: &str) -> Result<String, FormatError> {
     let array = match json_value {
         serde_json::Value::Array(arr) => arr,
         serde_json::Value::Object(_) => vec![json_value],
-        _ => return Err(FormatError::SerializationError("TOML muss ein Array oder Objekt sein".to_string()))
+        _ => return Err(FormatError::SerializationError("TOML must be an array or object".to_string()))
     };
     
     if array.is_empty() {
@@ -85,7 +85,7 @@ pub fn toml_to_csv_string(input: &str) -> Result<String, FormatError> {
     
     // Header schreiben
     writer.write_record(&headers)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error writing CSV header: {}", e)))?;
     
     // Daten schreiben
     for flat_obj in flattened {
@@ -93,15 +93,15 @@ pub fn toml_to_csv_string(input: &str) -> Result<String, FormatError> {
             .map(|h| flat_obj.get(h).cloned().unwrap_or_default())
             .collect();
         writer.write_record(&row)
-            .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Zeile: {}", e)))?;
+            .map_err(|e| FormatError::SerializationError(format!("Error writing CSV row: {}", e)))?;
     }
     
     // Writer in String umwandeln
     let data = writer.into_inner()
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error finishing CSV: {}", e)))?;
     
     String::from_utf8(data)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler bei UTF-8 Konvertierung: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error converting to UTF-8: {}", e)))
 }
 
 // ============================================================================
@@ -114,12 +114,12 @@ pub fn convert_toml_to_json(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = toml_to_json_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -130,12 +130,12 @@ pub fn convert_toml_to_yaml(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = toml_to_yaml_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -146,12 +146,12 @@ pub fn convert_toml_to_toml(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = toml_to_toml_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -162,12 +162,12 @@ pub fn convert_toml_to_csv(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = toml_to_csv_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -230,13 +230,13 @@ fn json_value_to_string(value: &serde_json::Value) -> String {
 pub fn validate_toml(input_path: &str) -> Result<toml::Value, FormatError> {
     // 1. Datei lesen - content enthält den TOML-Text als String
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
 
     // 2. TOML parsen und validieren
     // toml::from_str wandelt den String in eine toml::Value Struktur um
     // Dies ist die "Intermediate Representation" (IR)
     let toml_value: toml::Value = toml::from_str(&content)
-        .map_err(|e| FormatError::ParseError(format!("Fehler beim Parsen von TOML: {}", e)))?;
+        .map_err(|e| FormatError::ParseError(format!("Error parsing TOML: {}", e)))?;
 
     // 3. Validiertes toml::Value zurückgeben
     Ok(toml_value)

@@ -1,7 +1,7 @@
 {
-  "name": "asp_cli",
+  "name": "convrs",
   "version": "1.0.0",
-  "description": "Ein Command-Line-Interface Tool zum Konvertieren zwischen verschiedenen Datenformaten (JSON, YAML, TOML).",
+  "description": "Ein Command-Line-Interface Tool zum Konvertieren zwischen verschiedenen Datenformaten (JSON, YAML, TOML, CSV).",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,16 +11,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Arda450/cli-data-converter.git"
+    "url": "git+https://github.com/Arda450/convrs.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Arda450/cli-data-converter/issues"
+    "url": "https://github.com/Arda450/convrs/issues"
   },
-  "homepage": "https://github.com/Arda450/cli-data-converter#readme",
+  "homepage": "https://github.com/Arda450/convrs#readme",
   "devDependencies": {
     "vitepress": "^1.6.4"
   }

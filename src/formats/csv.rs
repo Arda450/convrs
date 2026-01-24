@@ -16,7 +16,7 @@ pub fn csv_to_json_string(input: &str) -> Result<String, FormatError> {
     let json_value = JsonValue::Array(records);
     
     serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von JSON: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting JSON: {}", e)))
 }
 
 /// Konvertiert CSV String zu YAML String
@@ -25,7 +25,7 @@ pub fn csv_to_yaml_string(input: &str) -> Result<String, FormatError> {
     let json_value = JsonValue::Array(records);
     
     serde_yaml::to_string(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von YAML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting YAML: {}", e)))
 }
 
 /// Konvertiert CSV String zu TOML String
@@ -41,7 +41,7 @@ pub fn csv_to_toml_string(input: &str) -> Result<String, FormatError> {
     let toml_value = json_to_toml_value(&json_value)?;
     
     toml::to_string_pretty(&toml_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Formatieren von TOML: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error formatting TOML: {}", e)))
 }
 
 /// Konvertiert CSV String zu CSV String (Formatierung)
@@ -56,7 +56,7 @@ pub fn csv_to_csv_string(input: &str) -> Result<String, FormatError> {
     let headers: Vec<String> = if let JsonValue::Object(obj) = &records[0] {
         obj.keys().cloned().collect()
     } else {
-        return Err(FormatError::SerializationError("CSV Records müssen Objekte sein".to_string()));
+        return Err(FormatError::SerializationError("CSV records must be objects".to_string()));
     };
     
     // CSV Writer in Memory
@@ -64,7 +64,7 @@ pub fn csv_to_csv_string(input: &str) -> Result<String, FormatError> {
     
     // Header schreiben
     writer.write_record(&headers)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Header: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error writing CSV header: {}", e)))?;
     
     // Records schreiben
     for record in &records {
@@ -78,26 +78,57 @@ pub fn csv_to_csv_string(input: &str) -> Result<String, FormatError> {
                 })
                 .collect();
             writer.write_record(&row)
-                .map_err(|e| FormatError::SerializationError(format!("Fehler beim Schreiben der CSV-Zeile: {}", e)))?;
+                .map_err(|e| FormatError::SerializationError(format!("Error writing CSV row: {}", e)))?;
         }
     }
     
     // Writer in String umwandeln
     let data = writer.into_inner()
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Abschliessen von CSV: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error finishing CSV: {}", e)))?;
     
     String::from_utf8(data)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler bei UTF-8 Konvertierung: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("Error converting to UTF-8: {}", e)))
 }
 
-/// Hilfsfunktion: Parst CSV String zu JSON Values (flach, keine Dot-Notation)
+/// Hilfsfunktion für csv: Parst CSV String zu JSON Values (flach, keine Dot-Notation)
 fn parse_csv_to_json_values(input: &str) -> Result<Vec<JsonValue>, FormatError> {
+    // Validierung: Prüfe, ob Input wirklich CSV-Format hat
+    // CSV sollte Kommas (oder andere Trennzeichen) enthalten und konsistente Spalten haben
+    let lines: Vec<&str> = input.lines().filter(|l| !l.trim().is_empty()).collect();
+    
+    if lines.is_empty() {
+        return Err(FormatError::ParseError("CSV input is empty".to_string()));
+    }
+    
+    // Prüfe, ob erste Zeile (Header) Kommas enthält
+    let first_line = lines[0].trim();
+    if !first_line.contains(',') {
+        return Err(FormatError::ParseError(
+            format!("Invalid CSV format: First line contains no commas. CSV should contain comma-separated values, e.g.: name,age,city")
+        ));
+    }
+    
+    // Prüfe, ob alle Zeilen die gleiche Anzahl von Spalten haben (mindestens 2 Zeilen für Vergleich)
+    if lines.len() >= 2 {
+        let header_columns = first_line.matches(',').count() + 1;
+        for (i, line) in lines.iter().enumerate().skip(1) {
+            let line_columns = line.matches(',').count() + 1;
+            if line_columns != header_columns {
+                return Err(FormatError::ParseError(
+                    format!("Invalid CSV format: Line {} has {} columns, but header has {} columns. All lines must have the same number of columns.", 
+                        i + 1, line_columns, header_columns)
+                ));
+            }
+        }
+    }
+    
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
+        .flexible(false) // Strenge Validierung: keine unterschiedliche Spaltenanzahl
         .from_reader(input.as_bytes());
     
     let headers = reader.headers()
-        .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen der CSV-Header: {}", e)))?
+        .map_err(|e| FormatError::ParseError(format!("Error reading CSV header: {}", e)))?
         .clone();
     
     let header_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
@@ -106,7 +137,7 @@ fn parse_csv_to_json_values(input: &str) -> Result<Vec<JsonValue>, FormatError> 
     
     for result in reader.records() {
         let record = result
-            .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen eines CSV-Records: {}", e)))?;
+            .map_err(|e| FormatError::ParseError(format!("Error reading CSV record: {}", e)))?;
         
         let mut obj = serde_json::Map::new();
         
@@ -133,12 +164,12 @@ pub fn convert_csv_to_json(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = csv_to_json_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -149,12 +180,12 @@ pub fn convert_csv_to_yaml(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = csv_to_yaml_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -165,12 +196,12 @@ pub fn convert_csv_to_toml(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = csv_to_toml_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -181,12 +212,12 @@ pub fn convert_csv_to_csv(
     output_path: &str
 ) -> Result<(), FormatError> {
     let content = fs::read_to_string(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from {}: {}", input_path, e)))?;
     
     let result = csv_to_csv_string(&content)?;
     
     fs::write(output_path, result)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
     
     Ok(())
 }
@@ -241,11 +272,11 @@ pub fn convert_csv_to_json_nested(
     
     // 3. JSON Value → Pretty-Printed String
     let json_string = serde_json::to_string_pretty(&json_value)
-        .map_err(|e| FormatError::SerializationError(format!("Fehler beim Serialisieren von JSON: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("Error serializing JSON: {}", e)))?;
     
     // 4. String in Datei schreiben
     fs::write(output_path, json_string)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Schreiben nach {}: {}", output_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error writing to {}: {}", output_path, e)))?;
 
     Ok(())
 }
@@ -263,11 +294,11 @@ fn read_csv_to_json_nested(input_path: &str) -> Result<Vec<JsonValue>, FormatErr
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
         .from_path(input_path)
-        .map_err(|e| FormatError::IoError(format!("Fehler beim Lesen von CSV {}: {}", input_path, e)))?;
+        .map_err(|e| FormatError::IoError(format!("Error reading from CSV {}: {}", input_path, e)))?;
     
     // 2. Header lesen
     let headers = reader.headers()
-        .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen der CSV-Header: {}", e)))?
+        .map_err(|e| FormatError::ParseError(format!("Error reading CSV header: {}", e)))?
         .clone();
     
     let header_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
@@ -277,7 +308,7 @@ fn read_csv_to_json_nested(input_path: &str) -> Result<Vec<JsonValue>, FormatErr
     
     for result in reader.records() {
         let record = result
-            .map_err(|e| FormatError::ParseError(format!("Fehler beim Lesen eines CSV-Records: {}", e)))?;
+            .map_err(|e| FormatError::ParseError(format!("Error reading CSV record: {}", e)))?;
         
         // Jedes Record wird ein JSON-Objekt (möglicherweise verschachtelt)
         let mut root = serde_json::Map::new();

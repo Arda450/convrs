@@ -1,1 +1,0 @@
-// Format Autodetektion hier implementieren
