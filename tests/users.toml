@@ -1,0 +1,17 @@
+[[data]]
+active = true
+age = 30
+city = "Zürich"
+name = "Alice"
+
+[[data]]
+active = false
+age = 25
+city = "Bern"
+name = "Bob"
+
+[[data]]
+active = true
+age = 35
+city = "Basel"
+name = "Charlie"

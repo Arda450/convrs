@@ -1,0 +1,12 @@
+- active: true
+  age: 30
+  city: Zürich
+  name: Alice
+- active: false
+  age: 25
+  city: Bern
+  name: Bob
+- active: true
+  age: 35
+  city: Basel
+  name: Charlie

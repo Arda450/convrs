@@ -1,0 +1,32 @@
+[
+  {
+    "address.city": "Berlin",
+    "address.country": "Germany",
+    "age": 25,
+    "contact.email": "alice@test.com",
+    "contact.phone": 49123456,
+    "name": "Alice",
+    "settings.notifications": true,
+    "settings.theme": "dark"
+  },
+  {
+    "address.city": "München",
+    "address.country": "Germany",
+    "age": 30,
+    "contact.email": "bob@example.com",
+    "contact.phone": 49789012,
+    "name": "Bob",
+    "settings.notifications": false,
+    "settings.theme": "light"
+  },
+  {
+    "address.city": "Hamburg",
+    "address.country": "Germany",
+    "age": 22,
+    "contact.email": "charlie@web.de",
+    "contact.phone": null,
+    "name": "Charlie",
+    "settings.notifications": true,
+    "settings.theme": "dark"
+  }
+]

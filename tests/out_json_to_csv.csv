@@ -1,0 +1,2 @@
+user_id,user_preferences_notifications_email,user_preferences_notifications_sms,user_profile_contact_email,user_profile_contact_phones,user_profile_name
+123,true,false,john@example.com,"[{""number"":""555-1234"",""type"":""home""},{""number"":""555-5678"",""type"":""work""}]",John Doe

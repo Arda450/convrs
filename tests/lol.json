@@ -1,0 +1,42 @@
+[
+  {
+    "active": true,
+    "age": 25,
+    "balance": 1250.5,
+    "city": "Berlin",
+    "email": "alice@test.com",
+    "name": "Alice"
+  },
+  {
+    "active": false,
+    "age": 30,
+    "balance": 89.99,
+    "city": "München",
+    "email": "bob@example.com",
+    "name": "Bob"
+  },
+  {
+    "active": true,
+    "age": 22,
+    "balance": 0,
+    "city": "Hamburg",
+    "email": "charlie@web.de",
+    "name": "Charlie"
+  },
+  {
+    "active": true,
+    "age": 35,
+    "balance": 3420.75,
+    "city": "Köln",
+    "email": null,
+    "name": "Diana"
+  },
+  {
+    "active": false,
+    "age": 28,
+    "balance": null,
+    "city": "Frankfurt",
+    "email": "eve@mail.com",
+    "name": "Eve"
+  }
+]

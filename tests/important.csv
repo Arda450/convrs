@@ -1,0 +1,2 @@
+config,description,features,metadata,name,version
+"{""debug"":true,""host"":""localhost"",""port"":8080}",Test JSON file,"[""json"",""yaml"",""toml""]","{""author"":""Test User"",""created"":""2025-11-16""}",asp_cli,0.1.0
