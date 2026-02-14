@@ -22,23 +22,23 @@
 Thumbs.db
 desktop.ini
 
-# Test-Dateien (werden ignoriert)
-*.json
-*.yaml
-*.yml
-*.toml
-*.csv
+# Test-Dateien im Root (werden ignoriert)
+/*.json
+/*.yaml
+/*.yml
+/*.toml
+/*.csv
 
-# Diese wichtigen Config-Dateien sind Ausnahmen und werden NICHT ignoriert:
-!Cargo.toml
-!Trunk.toml
-!package.json
-!package-lock.json
-!tsconfig.json
+# Abgabe: nicht mitliefern
+/tests/                    # Test-Dateien
+/docs/                     # Dokumentation
+/typst/                    
+start-web.bat              
+start-web.sh               
 
-# VitePress Build
-docs/.vitepress/dist/
-docs/.vitepress/cache/
+# Node/npm (nur für Docs, nicht für Abgabe)
+package.json
+package-lock.json
 node_modules/
 
 # Temporäre Dateien

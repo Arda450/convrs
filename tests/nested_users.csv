@@ -1,5 +1,0 @@
-name,age,contact.email,contact.phone,address.city,address.country,settings.theme,settings.notifications
-Alice,25,alice@test.com,+49123456,Berlin,Germany,dark,true
-Bob,30,bob@example.com,+49789012,München,Germany,light,false
-Charlie,22,charlie@web.de,,Hamburg,Germany,dark,true
-
